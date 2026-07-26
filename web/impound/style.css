@@ -1,0 +1,220 @@
+:root {
+    --main-color: rgb(87, 60, 250);
+    --main-color-hover: rgb(69, 46, 199);
+    --main-color-active: rgb(41, 21, 156);
+
+    --ok-color: #2f9e44;
+    --ok-color-hover: #268038;
+
+    --close-color: #db2828b3;
+    --close-color-hover: #a0101073;
+
+    --menu-background: #07070cf2;
+    --row-background: #e1e1e10f;
+    --row-background-hover: #e1e1e11c;
+
+    --scrollbar-color: #573cfa;
+    --scrollbar-background: #07070cfa;
+}
+
+* {
+    box-sizing: border-box;
+    user-select: none;
+}
+
+body {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    color: #e7e7e7;
+}
+
+.hidden {
+    display: none !important;
+}
+
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: var(--scrollbar-background);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-color);
+    border-radius: 10px;
+}
+
+#panel {
+    position: absolute;
+    left: 3.5vh;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24em;
+    max-height: 80vh;
+    background: var(--menu-background);
+    border-radius: 0.6em;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 40px rgba(87, 60, 250, 0.25);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    padding: 0.9em 1em;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.header .title {
+    margin: 0;
+    font-size: 1.15em;
+    font-weight: 700;
+    margin-right: auto;
+}
+
+.header .close {
+    width: 1.8em;
+    height: 1.8em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--close-color);
+    border-radius: 0.35em;
+    font-size: 1.2em;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.header .close:hover {
+    background: var(--close-color-hover);
+}
+
+.body {
+    padding: 0.8em;
+    overflow-y: auto;
+}
+
+.section-label {
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.55;
+    margin: 0.9em 0 0.4em 0.2em;
+}
+
+.section-label:first-child {
+    margin-top: 0.1em;
+}
+
+.vehicle {
+    background: var(--row-background);
+    border-radius: 0.5em;
+    margin-bottom: 0.5em;
+    overflow: hidden;
+    transition: background 0.15s;
+}
+
+.vehicle:hover {
+    background: var(--row-background-hover);
+}
+
+.vehicle-row {
+    display: flex;
+    align-items: center;
+    padding: 0.65em 0.8em;
+    cursor: pointer;
+    gap: 0.6em;
+}
+
+.vehicle-row .plate {
+    font-weight: 700;
+    font-size: 1.05em;
+    margin-right: auto;
+}
+
+.vehicle-row .status {
+    font-size: 0.75em;
+    padding: 0.2em 0.55em;
+    border-radius: 0.3em;
+    background: rgba(255, 255, 255, 0.08);
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
+.vehicle-row .status.lost {
+    background: rgba(219, 40, 40, 0.25);
+}
+
+.vehicle.expanded .vehicle-row {
+    background: rgba(87, 60, 250, 0.12);
+}
+
+.vehicle-actions {
+    display: none;
+    padding: 0 0.8em 0.8em 0.8em;
+    gap: 0.5em;
+    flex-wrap: wrap;
+}
+
+.vehicle.expanded .vehicle-actions {
+    display: flex;
+}
+
+.vehicle-actions .fee {
+    width: 100%;
+    font-size: 0.8em;
+    opacity: 0.7;
+    margin-bottom: 0.4em;
+}
+
+.vehicle-actions .lock-info {
+    width: 100%;
+    font-size: 0.8em;
+    color: #f03e3e;
+    opacity: 0.9;
+    margin-bottom: 0.2em;
+}
+
+.vehicle-actions .reason-info {
+    width: 100%;
+    font-size: 0.78em;
+    opacity: 0.55;
+    font-style: italic;
+    margin-bottom: 0.3em;
+}
+
+.release-btn {
+    flex: 1;
+    text-align: center;
+    padding: 0.5em 0.4em;
+    border-radius: 0.4em;
+    background: var(--main-color);
+    font-size: 0.85em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.release-btn:hover {
+    background: var(--main-color-hover);
+}
+
+.release-btn:active {
+    background: var(--main-color-active);
+}
+
+.release-btn.locked {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.3);
+    cursor: not-allowed;
+}
+
+.release-btn.locked:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
