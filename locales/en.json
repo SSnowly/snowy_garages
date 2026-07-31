@@ -210,6 +210,7 @@
     "impound_reason_label": "Reason: %s",
     "impound_locked": "Locked",
     "impound_input_title": "Impound Vehicle",
+    "impound_input_plate": "License plate",
     "impound_input_fine": "Fine ($)",
     "impound_input_duration": "Lockout (minutes, 0 = immediate)",
     "impound_input_reason": "Reason",

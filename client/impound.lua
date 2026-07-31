@@ -5,52 +5,108 @@ local Vehicle = require "client.vehicle"
 RegisterNetEvent('snowy_garages:startImpound', function()
     local coords  = GetEntityCoords(cache.ped)
     local nearby  = lib.getNearbyVehicles(coords, Config.interactDistance, false)
-    local vehicle = nearby[1] and nearby[1].vehicle or nil
-    if not vehicle then
-        lib.notify({ title = locale('impound_no_vehicle'), type = 'error' })
-        return
+    local vehicle, ghostVehicle = nil, nil
+    for _, entry in ipairs(nearby) do
+        if NetworkGetEntityIsNetworked(entry.vehicle) then
+            vehicle = entry.vehicle
+            break
+        elseif not ghostVehicle then
+            ghostVehicle = entry.vehicle
+        end
     end
 
-    if not Vehicle.isEmpty(vehicle) then
-        lib.notify({ title = locale('impound_occupied'), type = 'error' })
-        return
+    if vehicle then
+        if not Vehicle.isEmpty(vehicle) then
+            lib.notify({ title = locale('impound_occupied'), type = 'error' })
+            return
+        end
+
+        local plate    = GetVehicleNumberPlateText(vehicle)
+        local netId    = NetworkGetNetworkIdFromEntity(vehicle)
+        local maxSeats = GetVehicleModelNumberOfSeats(GetEntityModel(vehicle))
+
+        local input = lib.inputDialog(locale('impound_input_title'), {
+            { type = 'number', label = locale('impound_input_fine'),     default = Config.impoundFee, min = 0 },
+            { type = 'number', label = locale('impound_input_duration'), default = 0,                min = 0 },
+            { type = 'input',  label = locale('impound_input_reason'),   max = 128 },
+        })
+        if not input then return end
+
+        local fine     = tonumber(input[1]) or Config.impoundFee
+        local lockMins = tonumber(input[2]) or 0
+        local reason   = type(input[3]) == 'string' and input[3] ~= '' and input[3] or nil
+
+        local completed = lib.progressBar({
+            duration  = Config.impoundDuration * 1000,
+            label     = locale('impound_progress'),
+            canCancel = true,
+            disable   = { move = true, car = true, combat = true },
+            anim      = { dict = Config.impoundAnimDict, clip = Config.impoundAnim },
+        })
+        if not completed then return end
+
+        local result = lib.callback.await('snowy_garages:impoundVehicle', false, netId, plate, maxSeats, fine, lockMins, reason)
+        if result == 'occupied' then
+            lib.notify({ title = locale('impound_occupied'), type = 'error' })
+            return
+        elseif not result then
+            lib.notify({ title = locale('impound_failed'), type = 'error' })
+            return
+        end
+
+        Vehicle.forceDelete(vehicle)
+        lib.notify({ title = locale('impound_success'), type = 'success' })
+    else
+        local plate = ghostVehicle and GetVehicleNumberPlateText(ghostVehicle):match('^%s*(.-)%s*$') or nil
+
+        local input
+        if plate then
+            input = lib.inputDialog(locale('impound_input_title'), {
+                { type = 'number', label = locale('impound_input_fine'),     default = Config.impoundFee, min = 0 },
+                { type = 'number', label = locale('impound_input_duration'), default = 0,                min = 0 },
+                { type = 'input',  label = locale('impound_input_reason'),   max = 128 },
+            })
+            if not input then return end
+        else
+            input = lib.inputDialog(locale('impound_input_title'), {
+                { type = 'input',  label = locale('impound_input_plate'),    max = 8, required = true },
+                { type = 'number', label = locale('impound_input_fine'),     default = Config.impoundFee, min = 0 },
+                { type = 'number', label = locale('impound_input_duration'), default = 0,                min = 0 },
+                { type = 'input',  label = locale('impound_input_reason'),   max = 128 },
+            })
+            if not input then return end
+            plate = type(input[1]) == 'string' and input[1]:upper():gsub('%s', '') or nil
+            if not plate or plate == '' then return end
+        end
+
+        local fine, lockMins, reason
+        if ghostVehicle then
+            fine     = tonumber(input[1]) or Config.impoundFee
+            lockMins = tonumber(input[2]) or 0
+            reason   = type(input[3]) == 'string' and input[3] ~= '' and input[3] or nil
+        else
+            fine     = tonumber(input[2]) or Config.impoundFee
+            lockMins = tonumber(input[3]) or 0
+            reason   = type(input[4]) == 'string' and input[4] ~= '' and input[4] or nil
+        end
+
+        local completed = lib.progressBar({
+            duration  = Config.impoundDuration * 1000,
+            label     = locale('impound_progress'),
+            canCancel = true,
+            disable   = { move = true, car = true, combat = true },
+            anim      = { dict = Config.impoundAnimDict, clip = Config.impoundAnim },
+        })
+        if not completed then return end
+
+        local result = lib.callback.await('snowy_garages:impoundParkedVehicle', false, plate, fine, lockMins, reason)
+        if not result then
+            lib.notify({ title = locale('impound_failed'), type = 'error' })
+            return
+        end
+
+        lib.notify({ title = locale('impound_success'), type = 'success' })
     end
-
-    local plate = GetVehicleNumberPlateText(vehicle)
-    local netId = NetworkGetNetworkIdFromEntity(vehicle)
-    local maxSeats = GetVehicleModelNumberOfSeats(GetEntityModel(vehicle))
-
-    local input = lib.inputDialog(locale('impound_input_title'), {
-        { type = 'number', label = locale('impound_input_fine'),     default = Config.impoundFee, min = 0 },
-        { type = 'number', label = locale('impound_input_duration'), default = 0,                min = 0 },
-        { type = 'input',  label = locale('impound_input_reason'),   max = 128 },
-    })
-    if not input then return end
-
-    local fine     = tonumber(input[1]) or Config.impoundFee
-    local lockMins = tonumber(input[2]) or 0
-    local reason   = type(input[3]) == 'string' and input[3] ~= '' and input[3] or nil
-
-    local completed = lib.progressBar({
-        duration  = Config.impoundDuration * 1000,
-        label     = locale('impound_progress'),
-        canCancel = true,
-        disable   = { move = true, car = true, combat = true },
-        anim      = { dict = Config.impoundAnimDict, clip = Config.impoundAnim },
-    })
-    if not completed then return end
-
-    local result = lib.callback.await('snowy_garages:impoundVehicle', false, netId, plate, maxSeats, fine, lockMins, reason)
-    if result == 'occupied' then
-        lib.notify({ title = locale('impound_occupied'), type = 'error' })
-        return
-    elseif not result then
-        lib.notify({ title = locale('impound_failed'), type = 'error' })
-        return
-    end
-
-    Vehicle.forceDelete(vehicle)
-    lib.notify({ title = locale('impound_success'), type = 'success' })
 end)
 
 ---ox_lib's lib.requestModel throws if IsModelInCdimage() rejects the hash, which misfires for

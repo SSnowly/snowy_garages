@@ -147,6 +147,32 @@ lib.callback.register('snowy_garages:impoundVehicle', function(source, netId, pl
     return true
 end)
 
+lib.callback.register('snowy_garages:impoundParkedVehicle', function(source, plate, fine, lockMins, reason)
+    if not isPlayerLoaded(source) then return false end
+    if not isImpoundJob(Bridge.getPlayerJob(source)) then return false end
+
+    plate = type(plate) == 'string' and normalizePlate(plate:upper()) or nil
+    if not plate or plate == '' then return false end
+
+    local row = getVehicleRow(plate)
+    if not row or row.impound_date then return false end
+    if not row.garage then return false end
+
+    local sanitizedFine   = type(fine)     == 'number' and math.max(0, math.floor(fine))           or nil
+    local sanitizedReason = type(reason)   == 'string' and reason:sub(1, 128)                       or nil
+    local impoundUntil    = type(lockMins) == 'number' and lockMins > 0
+                            and os.time() + math.floor(lockMins) * 60 or nil
+
+    local affected = MySQL.update.await(
+        ('UPDATE `%s` SET `garage` = NULL, `garageSpotID` = NULL, `netid` = NULL%s, `impound_date` = ?, `impound_fine` = ?, `impound_until` = ?, `impound_reason` = ?, `state` = 2 WHERE `plate` = ?'):format(Config.ownedVehiclesTable, Schema.positionNull),
+        { os.time(), sanitizedFine, impoundUntil, sanitizedReason, plate }
+    )
+    if affected == 0 then return false end
+
+    TriggerClientEvent('snowy_garages:spotVacated', -1, row.garage, row.garageSpotID)
+    return true
+end)
+
 lib.callback.register('snowy_garages:getImpoundedVehicles', function(source)
     if not isPlayerLoaded(source) then return {} end
     local identifier = Bridge.getPlayerIdentifier(source)
@@ -631,13 +657,21 @@ RegisterNetEvent('snowy_garages:setJobVehicleData', function(plate, job, modelHa
     local modsJson = (type(props) == 'table') and json.encode(props) or nil
     if Schema.isEsx then
         MySQL.update.await(
-            ('UPDATE `%s` SET `company` = ?, `vehicle` = COALESCE(?, `vehicle`) WHERE `plate` = ?'):format(Config.ownedVehiclesTable),
+            ('UPDATE `%s` SET `owner` = NULL, `company` = ?, `vehicle` = COALESCE(?, `vehicle`) WHERE `plate` = ?'):format(Config.ownedVehiclesTable),
             { job, modsJson, plate }
+        )
+        MySQL.update.await(
+            ('UPDATE `%s` SET `owner` = NULL WHERE (`company` = ? OR `company` LIKE ?) AND `plate` != ?'):format(Config.ownedVehiclesTable),
+            { job, job .. ':%', plate }
         )
     else
         MySQL.update.await(
-            ('UPDATE `%s` SET `company` = ?, `hash` = ?, `mods` = COALESCE(?, `mods`) WHERE `plate` = ?'):format(Config.ownedVehiclesTable),
+            ('UPDATE `%s` SET `citizenid` = NULL, `license` = NULL, `company` = ?, `hash` = ?, `mods` = COALESCE(?, `mods`) WHERE `plate` = ?'):format(Config.ownedVehiclesTable),
             { job, hash, modsJson, plate }
+        )
+        MySQL.update.await(
+            ('UPDATE `%s` SET `citizenid` = NULL, `license` = NULL WHERE (`company` = ? OR `company` LIKE ?) AND `plate` != ?'):format(Config.ownedVehiclesTable),
+            { job, job .. ':%', plate }
         )
     end
     TriggerClientEvent('ox_lib:notify', source, { title = locale('impound_company_set'):format(plate, job), type = 'success' })

@@ -45,18 +45,12 @@ MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `impound_date`   I
 MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `impound_fine`   INT          DEFAULT NULL'):format(vt))
 MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `impound_until`  INT          DEFAULT NULL'):format(vt))
 MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `impound_reason` VARCHAR(128) DEFAULT NULL'):format(vt))
-
-if Framework.isEsx then
-    -- ESX owned_vehicles only has owner/plate/vehicle/stored/job by default.
-    -- Add every column that snowy_garages needs and that QBCore already ships with.
-    MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `garage`       VARCHAR(64)  DEFAULT NULL'):format(vt))
-    MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `garageSpotID` INT          DEFAULT NULL'):format(vt))
-    MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `netid`        INT          DEFAULT NULL'):format(vt))
-    MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `state`        TINYINT(1)   NOT NULL DEFAULT 0'):format(vt))
-    MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `parking_date` INT          DEFAULT NULL'):format(vt))
-    MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `company`      VARCHAR(70)  DEFAULT NULL'):format(vt))
-end
-
+MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `garage`       VARCHAR(64)  DEFAULT NULL'):format(vt))
+MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `garageSpotID` INT          DEFAULT NULL'):format(vt))
+MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `netid`        INT          DEFAULT NULL'):format(vt))
+MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `state`        TINYINT(1)   NOT NULL DEFAULT 0'):format(vt))
+MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `parking_date` INT          DEFAULT NULL'):format(vt))
+MySQL.query.await(('ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `company`      VARCHAR(70)  DEFAULT NULL'):format(vt))
 -- Sweep vehicles that have no garage and no impound_date (limbo from crashes or migrated from
 -- another resource) into impound with a zero fine and no lockout so players can reclaim them.
 MySQL.query.await(
@@ -64,6 +58,17 @@ MySQL.query.await(
     { os.time() }
 )
 
+-- Remove owners from vehicles that are owned by any company (company-owned vehicles should not have an owner).
+-- if im not stupid esx uses owner 
+if Framework.isEsx then
+    MySQL.query.await(
+        ('UPDATE `%s` SET `owner` = NULL WHERE `company` IS NOT NULL'):format(vt)
+    )
+else
+    MySQL.query.await(
+        ('UPDATE `%s` SET `citizenid` = NULL, `license` = NULL WHERE `company` IS NOT NULL'):format(vt)
+    )
+end
 -- Seed default garages from data/seed_garages.ndjson if the table is empty.
 -- The file is NDJSON: one JSON object per line, coords/spawns/zone already stored as JSON strings.
 local garageCount = MySQL.scalar.await('SELECT COUNT(*) FROM `snowy_garages`')
